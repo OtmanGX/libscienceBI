@@ -1,5 +1,5 @@
 # libscienceBI
-Data Collection by scrapy from some IEE, ScienceDirect and ACM
+Data Collection by scrapy from some websites IEE, ScienceDirect and ACM
 
 Run docker with root privileges :
 
