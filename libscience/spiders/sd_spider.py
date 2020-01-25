@@ -6,7 +6,7 @@ script="""
 function main(splash)
   local url = splash.args.url
   assert(splash:go(url))
-  splash:wait(2)
+  splash:wait(3)
   splash:runjs([[
     document.querySelector('button.show-hide-details.u-font-sans').click();
   ]])
@@ -69,14 +69,14 @@ class ScienceDirectSpider(scrapy.Spider):
 		if location:
 			for loc in location.getall():
 				location_set.add(loc.split(',')[-1].strip())
-		pub_year = response.css('#publication-title+div::text')
+		pub_year = response.css('#publication div.text-xs::text')
 
 
 		item['title']= title
 		item['authors']= ';'.join(authors) 
 		item['abstract_']= abstract.get()
 		item['country']= ';'.join(loc for loc in location_set)
-		item['date_pub'] = pub_year.re(r'\d{4}')[0]
+		item['date_pub'] =  pub_year.re(r'\d{4}')[0]
 		item['topic'] = self.topic		
 		item['latitude'] =  0
 		item['longtitude'] = 0
