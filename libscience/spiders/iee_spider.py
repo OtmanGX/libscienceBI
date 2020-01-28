@@ -17,6 +17,7 @@ class IeeSpider(scrapy.Spider):
 		self.start_urls = ['https://ieeexplore.ieee.org/search/searchresult.jsp?newsearch=true&queryText=%s' %keywords]
 		self.topic = topic
 
+
 	def start_requests(self):
 		for url in self.start_urls:
 			yield SplashRequest(url, self.parse, args={'wait': 2})
@@ -40,22 +41,28 @@ class IeeSpider(scrapy.Spider):
 
 		authors = ";".join(response.css('.authors-info').css('span').css('a').css('span::text').extract())
 
-		affiliation_name = response.css('.affiliation_name::text').extract_first() if response.css('.affiliation_name::text').extract_first() is not None else ""
-		affiliation_city = response.css('.affiliation__city::text').extract_first() if response.css('.affiliation__city::text').extract_first() is not None else ""
-		affiliation_country = response.css('.affiliation__country::text').extract_first() if response.css('.affiliation__country::text').extract_first() is not None else "USA"
+		# affiliation_name = response.css('.affiliation_name::text').extract_first() if response.css('.affiliation_name::text').extract_first() is not None else ""
+		# affiliation_city = response.css('.affiliation__city::text').extract_first() if response.css('.affiliation__city::text').extract_first() is not None else ""
+		# affiliation_country = response.css('.affiliation__country::text').extract_first() if response.css('.affiliation__country::text').extract_first() is not None else "USA"
 
-		abstract = response.css('.abstract-desktop-div-sections').css('div').css('div::text').extract()
+		abstract = response.css('.abstract-desktop-div-sections').css('div.abstract-desktop-div').css('div::text').extract()
 
 		location = response.css('.doc-abstract-conferenceLoc::text')
-		pub_year = response.css('.stats-document-abstract-publishedIn').css('a::text')
+		pub_year = response.css('.doc-abstract-confdate::text')
+		if not(pub_year): 
+			pub_year = response.css('.stats-document-abstract-publishedIn').css('a::text')
+			pub_year = ''.join(pub_year.extract()).split(' ')[0]
+		else :
+			pub_year = pub_year.re(r'\d{4}')[0]
+			
 
 		item['title']= title
 		item['authors']= ''.join(authors) 
 		item['abstract_']= ''.join(''.join(abstract))
-		item['country']= ''.join(location.extract())
-		item['date_pub'] = ''.join(pub_year.extract()).split(' ')[0]
+		item['country']= None if not(location) else location.extract_first().split(",")[-1].strip()
+		item['date_pub'] =  pub_year
 		item['topic'] = self.topic		
 		item['latitude'] =  0
 		item['longtitude'] = 0
-		item['journal'] = ''.join(''.join(pub_year.extract()).split(' ')[1:])
+		# item['journal'] = ''.join(''.join(pub_year.extract()).split(' ')[1:])
 		yield item

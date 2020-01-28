@@ -1,7 +1,7 @@
 import scrapy
 from libscience.items import LibscienceItem
 from scrapy_splash import SplashRequest
-
+from .get_country import *
 script="""
 function main(splash)
   local url = splash.args.url
@@ -35,10 +35,12 @@ class ScienceDirectSpider(scrapy.Spider):
 		'myproject.pipelines.JsonWriterPipeline': 800,
 	}
 
-	def __init__(self , keywords=None , topic=None , *args , **kwargs) : 
+	def __init__(self , keywords=None , topic=None ,pages:int=1, *args , **kwargs) : 
 		super(ScienceDirectSpider , self).__init__(*args,**kwargs)
 		self.start_urls = ['https://www.sciencedirect.com/search/advanced?qs=%s&zone=qSearch#submit' %keywords]
 		self.topic = topic
+		self.pages = int(pages)
+		self.current_page = 0
 
 	def start_requests(self):
 		for url in self.start_urls:
@@ -50,9 +52,13 @@ class ScienceDirectSpider(scrapy.Spider):
 				journal = ''.join(response.css('ol.SubType.hor')[index].css('*::text').getall())
 				yield SplashRequest('https://www.sciencedirect.com' + article.extract(),
 					lambda res:self.parse_article(res, journal), args={'lua_source': script,'wait':3}, endpoint='execute')
-			#
-		#for next_page in response.css('a.next::attr("href")'):
-		#	yield response.follow(next_page, self.parse)
+				if self.pages > 1:
+					next_page = response.css('.pagination-link.next-link a::attr(href)').get()
+					if next_page is not None and self.current_page<self.pages:
+						self.current_page += 1
+						next_page = response.urljoin(next_page)
+						yield response.follow(next_page, callback=self.parse)
+
 
 	def parse_article(self,response, journal) : 
 		item = LibscienceItem()
@@ -71,14 +77,15 @@ class ScienceDirectSpider(scrapy.Spider):
 				location_set.add(loc.split(',')[-1].strip())
 		pub_year = response.css('#publication div.text-xs::text')
 
-
-		item['title']= title
-		item['authors']= ';'.join(authors) 
-		item['abstract_']= abstract.get()
-		item['country']= ';'.join(loc for loc in location_set)
-		item['date_pub'] =  pub_year.re(r'\d{4}')[0]
-		item['topic'] = self.topic		
-		item['latitude'] =  0
-		item['longtitude'] = 0
-		item['journal'] = journal
-		yield item
+		for loc  in location_set :
+			item['title']= title
+			item['authors']= ';'.join(authors) 
+			item['abstract_']= abstract.get()
+			# item['country']= ';'.join(loc for loc in location_set)
+			item['country']= get_country(loc)
+			item['date_pub'] =  pub_year.re(r'\d{4}')[0]
+			item['topic'] = self.topic		
+			item['latitude'] =  0
+			item['longtitude'] = 0
+			item['journal'] = journal
+			yield item
